@@ -1,4 +1,3 @@
-// Shared helper functions for customer and employees
 <?php
 require "db.php";
 
@@ -51,6 +50,27 @@ function registerCustomer($username, $firstName, $lastName, $email, $password, $
         return true;
     } catch (PDOException $e) {
         return $e->getMessage();
+    }
+}
+
+function changePassword($customer_id, $old_password, $new_password) {
+    try {
+        $dbh = connectDB();
+        $stmt = $dbh->prepare("SELECT hashed_password FROM customer WHERE customer_id = :customer_id");
+        $stmt->bindParam(":customer_id", $customer_id);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && password_verify($old_password, $row['hashed_password'])) {
+            $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+            $stmt = $dbh->prepare("UPDATE customer SET hashed_password = :hashed WHERE customer_id = :customer_id");
+            $stmt->bindParam(":hashed", $hashed);
+            $stmt->bindParam(":customer_id", $customer_id);
+            $stmt->execute();
+            return true;
+        }
+        return false;
+    } catch (PDOException $e) {
+        die("Error: " . $e->getMessage());
     }
 }
 ?>
