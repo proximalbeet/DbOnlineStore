@@ -25,7 +25,7 @@ if (isset($_POST["login"])) {
             $_SESSION["customer_id"] = $user["customer_id"];
             $_SESSION["username"] = $user["username"];
             $_SESSION["role"] = "customer";
-            header("Location: cust_main.php");
+            header("Location: customer.php");
             exit();
         }
     }
