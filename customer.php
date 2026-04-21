@@ -1,0 +1,2 @@
+// Customer main page
+<?php
