@@ -1,26 +1,88 @@
 <?php
-require "db.php";
 session_start();
-if (isset($_POST["logout"])) {
-    session_destroy();
-}
+require "common.php";
+
+// Handle login
 if (isset($_POST["login"])) {
-    if (authenticate($_POST["username"], $_POST["password"]) == 1) {
-        $_SESSION["username"] = $_POST["username"];
-        header("LOCATION:main.php");
-        return;
+    $username = $_POST["username"];
+    $password = $_POST["password"];
+    $role = $_POST["role"];
+
+    if ($role === "employee") {
+        $user = authenticateEmployee($username, $password);
+        if ($user) {
+            $_SESSION["employee_id"] = $user["employee_id"];
+            $_SESSION["username"] = $user["username"];
+            $_SESSION["role"] = "employee";
+            header("Location: emp_main.php");
+            exit();
+        }
     } else {
-        echo '<p style="color:red">incorrect username and password</p>';
+        $user = authenticateCustomer($username, $password);
+        if ($user) {
+            $_SESSION["customer_id"] = $user["customer_id"];
+            $_SESSION["username"] = $user["username"];
+            $_SESSION["role"] = "customer";
+            header("Location: cust_main.php");
+            exit();
+        }
+    }
+    $error = "Incorrect username or password.";
+}
+
+// Handle registration
+if (isset($_POST["register"])) {
+    $password = $_POST["password"];
+    $confirm = $_POST["confirm_password"];
+
+    if ($password !== $confirm) {
+        $reg_error = "Passwords do not match.";
+    } else {
+        $result = registerCustomer(
+                $_POST["username"],
+                $_POST["first_name"],
+                $_POST["last_name"],
+                $_POST["email"],
+                $password,
+                $_POST["shipping_address"]
+        );
+        if ($result === true) {
+            $reg_success = "Account created! You can now log in.";
+        } else {
+            $reg_error = "Registration failed: " . $result;
+        }
     }
 }
 ?>
-
 <html>
 <body>
-    <form method="post" action="login.php">
-        username: <input type="text" name="username"><br>
-        password: <input type="password" name="password"><br>
-        <input type="submit" name="login" value="login">
-    </form>
+<h2>Login</h2>
+<?php if (isset($error)) echo "<p style='color:red'>$error</p>"; ?>
+<form method="post" action="login.php">
+    Username: <input type="text" name="username"><br>
+    Password: <input type="password" name="password"><br>
+    Role:
+    <select name="role">
+        <option value="customer">Customer</option>
+        <option value="employee">Employee</option>
+    </select><br>
+    <input type="submit" name="login" value="Login">
+</form>
+
+<hr>
+
+<h2>New Customer? Register Here</h2>
+<?php if (isset($reg_error)) echo "<p style='color:red'>$reg_error</p>"; ?>
+<?php if (isset($reg_success)) echo "<p style='color:green'>$reg_success</p>"; ?>
+<form method="post" action="login.php">
+    Username: <input type="text" name="username"><br>
+    First Name: <input type="text" name="first_name"><br>
+    Last Name: <input type="text" name="last_name"><br>
+    Email: <input type="text" name="email"><br>
+    Shipping Address: <input type="text" name="shipping_address"><br>
+    Password: <input type="password" name="password"><br>
+    Confirm Password: <input type="password" name="confirm_password"><br>
+    <input type="submit" name="register" value="Register">
+</form>
 </body>
 </html>
