@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__notebooklm__get_health",
+      "Read(//home/nake7/.config/notebooklm-mcp/**)",
+      "Read(//home/nake7/.npm/_npx/0d29dd9f4e472da9/node_modules/notebooklm-mcp/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\); print\\('bin:', d.get\\('bin'\\)\\); print\\('main:', d.get\\('main'\\)\\)\")",
+      "mcp__notebooklm__cleanup_data"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
-// Customer main page
 <?php
+// Customer main page
 session_start();
 require "common.php";
 

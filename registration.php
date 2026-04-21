@@ -30,7 +30,7 @@ if (isset($_POST["register"])) {
 <body>
     <h2>Create Account</h2>
     <?php if (isset($error)) echo "<p style='color:red'>$error</p>"; ?>
-    <form method="post" action="register.php">
+    <form method="post" action="registration.php">
         Username: <input type="text" name="username"><br>
         First Name: <input type="text" name="first_name"><br>
         Last Name: <input type="text" name="last_name"><br>

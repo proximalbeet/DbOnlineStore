@@ -1,2 +1,2 @@
-// Employee main mage
 <?php
+// Employee main page
