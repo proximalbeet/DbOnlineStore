@@ -7,19 +7,30 @@ if (!isset($_SESSION["customer_id"])) {
     exit();
 }
 
-// TODO: Task 4 — call the checkout stored procedure.
-// $dbh = connectDB();
-// $stmt = $dbh->prepare("CALL checkout(?, @o, @oos)");
-// $stmt->execute([$_SESSION["customer_id"]]);
-// $stmt->closeCursor();
-// $out = $dbh->query("SELECT @o AS order_id, @oos AS out_of_stock_product")->fetch(PDO::FETCH_ASSOC);
-// If $out["out_of_stock_product"] is set: show "cannot complete order — <product> is out of stock".
-// Else: show "order #<order_id> placed".
+$customer_id = $_SESSION["customer_id"];
+$dbh = connectDB();
+
+$stmt = $dbh->prepare("CALL checkout(?, @order_id, @out_of_stock)");
+$stmt->execute([$customer_id]);
+$stmt->closeCursor();
+
+$result = $dbh->query("SELECT @order_id AS order_id, @out_of_stock AS out_of_stock")->fetch(PDO::FETCH_ASSOC);
+
+if ($result["out_of_stock"] !== null) {
+    // Get stock info for that product
+    $stockStmt = $dbh->prepare("SELECT actual_stock_quantity FROM product WHERE product_id = ?");
+    $stockStmt->execute([$result["out_of_stock"]]);
+    $stock = $stockStmt->fetch(PDO::FETCH_ASSOC);
+    $message = "There are only " . $stock["actual_stock_quantity"] . " left for product id " . $result["out_of_stock"] . ". Please update your cart.";
+} else {
+    $message = "Order placed successfully! Your order number is " . $result["order_id"] . ".";
+}
 ?>
 <html>
 <body>
-    <?php $nav_base = "../"; require __DIR__ . "/../includes/nav.php"; ?>
-    <h2>Checkout</h2>
-    <p>TODO: Task 4 — CALL checkout(?, @o, @oos) and display result.</p>
+<?php $nav_base = "../"; require __DIR__ . "/../includes/nav.php"; ?>
+<h2>Welcome <?php echo htmlspecialchars($_SESSION["username"]); ?>!!</h2>
+<p><?php echo $message; ?></p>
+<a href="cart.php">Back to Cart</a> | <a href="browse.php">Continue Shopping</a>
 </body>
 </html>
