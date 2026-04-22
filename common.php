@@ -1,5 +1,5 @@
 <?php
-require "db.php";
+require __DIR__ . "/db.php";
 
 function authenticateCustomer($username, $password) {
     try {
@@ -65,6 +65,27 @@ function changePassword($customer_id, $old_password, $new_password) {
             $stmt = $dbh->prepare("UPDATE customer SET hashed_password = :hashed WHERE customer_id = :customer_id");
             $stmt->bindParam(":hashed", $hashed);
             $stmt->bindParam(":customer_id", $customer_id);
+            $stmt->execute();
+            return true;
+        }
+        return false;
+    } catch (PDOException $e) {
+        die("Error: " . $e->getMessage());
+    }
+}
+
+function changeEmployeePassword($employee_id, $old_password, $new_password) {
+    try {
+        $dbh = connectDB();
+        $stmt = $dbh->prepare("SELECT hashed_password FROM employee WHERE employee_id = :employee_id");
+        $stmt->bindParam(":employee_id", $employee_id);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && password_verify($old_password, $row['hashed_password'])) {
+            $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+            $stmt = $dbh->prepare("UPDATE employee SET hashed_password = :hashed, password_reset_required = 0 WHERE employee_id = :employee_id");
+            $stmt->bindParam(":hashed", $hashed);
+            $stmt->bindParam(":employee_id", $employee_id);
             $stmt->execute();
             return true;
         }

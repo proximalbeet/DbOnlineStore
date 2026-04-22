@@ -1,6 +1,6 @@
 <?php
 session_start();
-require "common.php";
+require __DIR__ . "/../common.php";
 
 if (isset($_POST["register"])) {
     $password = $_POST["password"];

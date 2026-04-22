@@ -1,6 +1,6 @@
 <?php
 session_start();
-require "common.php";
+require __DIR__ . "/../common.php";
 
 if (isset($_POST["login"])) {
     $username = $_POST["username"];
@@ -13,7 +13,8 @@ if (isset($_POST["login"])) {
             $_SESSION["employee_id"] = $user["employee_id"];
             $_SESSION["username"] = $user["username"];
             $_SESSION["role"] = "employee";
-            header("Location: employee.php");
+            $_SESSION["password_reset_required"] = (int)$user["password_reset_required"];
+            header("Location: ../employee/employee.php");
             exit();
         }
     } else {
@@ -22,7 +23,7 @@ if (isset($_POST["login"])) {
             $_SESSION["customer_id"] = $user["customer_id"];
             $_SESSION["username"] = $user["username"];
             $_SESSION["role"] = "customer";
-            header("Location: customer.php");
+            header("Location: ../customer/customer.php");
             exit();
         }
     }

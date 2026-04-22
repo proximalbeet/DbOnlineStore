@@ -34,13 +34,38 @@ Online store web app for a database class. Phase 2 covers user-facing PHP featur
 ## Repo layout
 
 ```
-db.php              # connectDB() → PDO, reads db.ini (gitignored or committed per team choice)
-db.ini              # LOCAL credentials file, NOT the same path for each team member's deploy
-common.php          # Shared helpers: authenticateCustomer/Employee, registerCustomer, changePassword
-login.php           # Role-based login (customer/employee)
-registration.php    # Customer registration form
-customer.php        # Customer landing page (logout + password-change scaffolded)
-employee.php        # Employee landing page (empty stub)
+/
+├── db.php                  # connectDB() → PDO, reads db.ini
+├── db.ini                  # LOCAL credentials (per team member)
+├── common.php              # Shared helpers: auth, registration, password changes
+├── index.php               # Entry → redirects to customer/browse.php
+├── CLAUDE.md               # This file
+├── auth/
+│   ├── login.php           # Role-based login
+│   ├── registration.php    # Customer registration form
+│   └── logout.php          # session_destroy + redirect to login
+├── customer/
+│   ├── customer.php        # Customer landing page (auth-guarded nav)
+│   ├── browse.php          # Task 3 — category/product listing (stub)
+│   ├── cart.php            # Task 4 — view/update/remove cart (stub)
+│   ├── add_to_cart.php     # Task 4 — POST handler, lazy cart INSERT IGNORE (stub)
+│   ├── checkout.php        # Task 4 — CALL checkout(?, @o, @oos) (stub)
+│   ├── orders.php          # Task 5 — order list (stub)
+│   ├── order_detail.php    # Task 5 — drill-down to order_item (stub)
+│   └── password_change.php # Customer password change
+├── employee/
+│   ├── employee.php        # Employee landing, forced-reset redirect
+│   ├── password_change.php # Task 2 — forced reset; clears password_reset_required
+│   ├── restock.php         # Task 6 — UPDATE + CALL log_product_update (stub)
+│   ├── change_price.php    # Task 6 — same pattern (stub)
+│   ├── stock_history.php   # Task 6 — history_record view (stub)
+│   ├── price_history.php   # Task 6 — with % change column (stub)
+│   └── new_product.php     # Task 6 optional — CALL insert_product (stub)
+├── includes/
+│   ├── header.php          # session_start + <html><head>
+│   ├── nav.php             # Role-aware nav; caller sets $nav_base
+│   └── footer.php          # Closing tags
+└── images/                 # Product images (.gitkeep placeholder)
 ```
 
 ## Database schema (Phase 1, already on classdb)
@@ -78,6 +103,9 @@ employee.php        # Employee landing page (empty stub)
 - Customer cart is lazy: first add-to-cart does `INSERT IGNORE INTO cart (customer_id) VALUES (?)` then looks up cart_id. Alternative: create an empty cart row in `registerCustomer`.
 - For stock-history display: `history_record` captures explicit restocks/price changes, but the `checkout` proc does NOT log stock decrements. If the rubric's "stock history" needs to show customer-purchase-driven changes, either (a) modify checkout to call `log_product_update`, or (b) compose the history view in PHP by UNION-ing `history_record` with a query against `order_item`+`order`.
 - No `admin` table — "admin" role is just an existing employee who creates other employees via `create_employee`. Phase 2 requires at least one seeded employee to bootstrap this.
+- Subfolder PHP files include `common.php` via `require __DIR__ . "/../common.php";` — the `__DIR__` matters because the department web server's working directory is not guaranteed.
+- `includes/nav.php` expects the caller to set `$nav_base` before requiring it: `"../"` from any subfolder page, `""` from a root-level page. The nav uses `$nav_base` to build portable links that work at any deploy URL.
+- Employee login stashes `password_reset_required` in `$_SESSION`; `employee/*.php` pages redirect to `password_change.php` when the flag is truthy.
 
 ## Setup for a new team member
 
@@ -89,18 +117,24 @@ employee.php        # Employee landing page (empty stub)
 
 ### Done
 - `db.php` — PDO connection via `__DIR__ . "/db.ini"` (portable across both partners).
-- `common.php` — `authenticateCustomer`, `authenticateEmployee`, `registerCustomer`, `changePassword` using prepared statements + bcrypt.
-- `login.php` — role-based login, redirects to `customer.php` or `employee.php`.
-- `registration.php` — customer registration form (form action fixed).
-- `customer.php` — auth guard, logout button, customer password-change form.
+- `common.php` — `authenticateCustomer`, `authenticateEmployee`, `registerCustomer`, `changePassword`, `changeEmployeePassword` (clears `password_reset_required`). Uses `__DIR__` for db.php include.
+- `auth/login.php` — role-based login, redirects to `customer/customer.php` or `employee/employee.php`, stashes `password_reset_required` in session for employees.
+- `auth/registration.php` — customer registration form.
+- `auth/logout.php` — clears `$_SESSION` + `session_destroy` + redirect to login.
+- `customer/customer.php` — auth guard + landing nav (logout/password change extracted to their own files).
+- `customer/password_change.php` — customer password change form.
+- `employee/employee.php` — auth guard + forced-reset redirect + landing nav.
+- `employee/password_change.php` — employee password change (Task 2); on success clears session flag and sends to dashboard.
+- `includes/header.php` / `nav.php` / `footer.php` — shared layout; nav is role-aware and uses caller-set `$nav_base`.
+- `index.php` — redirects root to `customer/browse.php`.
+- **Repo reorganized by role** (auth/ customer/ employee/ includes/); scaffolds in place for Tasks 3–6.
 
 ### In progress / not started
-- **Task 2** — Employee forced-reset on first login; employee password-change form; optional dedicated `logout.php`.
-- **Task 3** — Product browsing: landing page listing categories → product list (name, price, image, stock status). No login required to browse; add-to-cart requires auth.
-- **Task 4** — Shopping cart + checkout (**75 pts, biggest**). Lazy cart creation; `cart.php` for view/update/remove; add-to-cart with `ON DUPLICATE KEY UPDATE`; checkout via `CALL checkout(...)` reading OUT params; display order number on success, OOS product on failure.
-- **Task 5** — View orders page (orders list with number/date/total → drill-down to order_items).
-- **Task 6** — Employee main page: restock (UPDATE + `CALL log_product_update`), change price (same pattern), stock history view, price history view with % change, optional insert-new-product via `insert_product` proc.
-- **Task 7** — Navigation polish + end-to-end testing (golden path + edge cases) before the TA demo.
+- **Task 3** — `customer/browse.php`: category list → product list (name, price, image, stock status). No login required to browse; add-to-cart requires auth.
+- **Task 4** — Shopping cart + checkout (**75 pts, biggest**). `customer/add_to_cart.php` (lazy cart creation + `ON DUPLICATE KEY UPDATE`), `customer/cart.php` (view/update/remove), `customer/checkout.php` (CALL checkout(?, @o, @oos) reading OUT params).
+- **Task 5** — `customer/orders.php` + `customer/order_detail.php` (order list with number/date/total → drill-down to `order_item`).
+- **Task 6** — Employee pages: `restock.php` (UPDATE + `CALL log_product_update`), `change_price.php` (same pattern), `stock_history.php`, `price_history.php` with % change, optional `new_product.php` via `insert_product` proc.
+- **Task 7** — Navigation polish (nav.php already scaffolded) + end-to-end testing before the TA demo.
 
 ### Phase 2 Report (separate deliverable, 80 pts)
 Not code — written doc required at submission. Must include: URLs, test credentials, database/table names, code snippets showing transaction handling + SQL-injection prevention, explanation of password encryption (bcrypt via `password_hash` / `password_verify`), and reflections. Each section is 5–15 pts.
