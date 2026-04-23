@@ -67,6 +67,9 @@ if (isset($_POST["add_to_cart"])) {
 
 <?php foreach ($products as $product): ?>
     <h3><?php echo htmlspecialchars($product["name"]); ?></h3>
+    <?php if ($product["image"]): ?>
+        <img src="<?php echo '../images/' . htmlspecialchars($product['image']); ?>" width="200"><br>
+    <?php endif; ?>
     <p>Price: <?php echo $product["price"]; ?></p>
     <p>Stock: <?php echo $product["actual_stock_quantity"] > 0 ? "In Stock" : "Out of Stock"; ?></p>
     <?php if (isset($_SESSION["customer_id"])): ?>
