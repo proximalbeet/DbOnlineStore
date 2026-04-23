@@ -45,6 +45,6 @@ if (isset($_POST["login"])) {
     <input type="submit" name="login" value="Login">
 </form>
 <br>
-<a href="registration.php">New customer? Create an account</a>
+<a href="registration.php">Click here if you need to create a new account</a>
 </body>
 </html>
