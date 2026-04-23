@@ -46,12 +46,12 @@ Online store web app for a database class. Phase 2 covers user-facing PHP featur
 │   └── logout.php          # session_destroy + redirect to login
 ├── customer/
 │   ├── customer.php        # Customer landing page (auth-guarded nav)
-│   ├── browse.php          # Task 3 — category/product listing (stub)
-│   ├── cart.php            # Task 4 — view/update/remove cart (stub)
-│   ├── add_to_cart.php     # Task 4 — POST handler, lazy cart INSERT IGNORE (stub)
-│   ├── checkout.php        # Task 4 — CALL checkout(?, @o, @oos) (stub)
-│   ├── orders.php          # Task 5 — order list (stub)
-│   ├── order_detail.php    # Task 5 — drill-down to order_item (stub)
+│   ├── browse.php          # Task 3 — category dropdown + product listing; also HOSTS the add-to-cart POST handler
+│   ├── cart.php            # Task 4 — view / update qty / remove
+│   ├── add_to_cart.php     # UNUSED stub — real add-to-cart logic lives inline in browse.php
+│   ├── checkout.php        # Task 4 — CALL checkout(?, @o, @oos), surfaces OOS product + remaining stock
+│   ├── orders.php          # Task 5 — order list + inline per-order item table (drill-down not needed)
+│   ├── order_detail.php    # UNUSED stub — orders.php already inlines the order_item table
 │   └── password_change.php # Customer password change
 ├── employee/
 │   ├── employee.php        # Employee landing, forced-reset redirect
@@ -101,6 +101,9 @@ Online store web app for a database class. Phase 2 covers user-facing PHP featur
 - Use `CALL checkout(?, @o, @oos)` + `SELECT @o, @oos` for checkout — don't roll your own transaction in PHP.
 - Employees created via `create_employee` proc start with `password_reset_required = 1`. On successful employee login, if that flag is 1, redirect to password-change BEFORE showing the employee main page. After successful change, set the flag to 0.
 - Customer cart is lazy: first add-to-cart does `INSERT IGNORE INTO cart (customer_id) VALUES (?)` then looks up cart_id. Alternative: create an empty cart row in `registerCustomer`.
+- Add-to-cart is handled inside `customer/browse.php`'s POST branch (not in `add_to_cart.php`). It uses `ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)` on `cart_item`. `add_to_cart.php` is a leftover stub that just redirects to `cart.php`.
+- Order detail is inlined in `customer/orders.php` (one `order_item` table per order in the list). `customer/order_detail.php` is an unused stub kept in place in case we later split it out.
+- `auth/logout.php` shows a one-button confirm form, then clears the session and redirects to `customer/browse.php` (public landing), not to the login page.
 - For stock-history display: `history_record` captures explicit restocks/price changes, but the `checkout` proc does NOT log stock decrements. If the rubric's "stock history" needs to show customer-purchase-driven changes, either (a) modify checkout to call `log_product_update`, or (b) compose the history view in PHP by UNION-ing `history_record` with a query against `order_item`+`order`.
 - No `admin` table — "admin" role is just an existing employee who creates other employees via `create_employee`. Phase 2 requires at least one seeded employee to bootstrap this.
 - Subfolder PHP files include `common.php` via `require __DIR__ . "/../common.php";` — the `__DIR__` matters because the department web server's working directory is not guaranteed.
@@ -119,22 +122,31 @@ Online store web app for a database class. Phase 2 covers user-facing PHP featur
 - `db.php` — PDO connection via `__DIR__ . "/db.ini"` (portable across both partners).
 - `common.php` — `authenticateCustomer`, `authenticateEmployee`, `registerCustomer`, `changePassword`, `changeEmployeePassword` (clears `password_reset_required`). Uses `__DIR__` for db.php include.
 - `auth/login.php` — role-based login, redirects to `customer/customer.php` or `employee/employee.php`, stashes `password_reset_required` in session for employees.
-- `auth/registration.php` — customer registration form.
-- `auth/logout.php` — clears `$_SESSION` + `session_destroy` + redirect to login.
+- `auth/registration.php` — customer registration form (username / first / last / email / shipping address / password + confirm; calls `registerCustomer` and redirects to login on success).
+- `auth/logout.php` — confirm-logout form; on submit clears `$_SESSION` + `session_destroy` and redirects to `customer/browse.php`.
 - `customer/customer.php` — auth guard + landing nav (logout/password change extracted to their own files).
 - `customer/password_change.php` — customer password change form.
+- `customer/browse.php` **(Task 3)** — category dropdown, product list (name/price/stock). Includes inline POST handler for add-to-cart: lazy `INSERT IGNORE INTO cart`, then `INSERT … ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)` on `cart_item`. Add-to-cart controls only render when a customer is logged in.
+- `customer/cart.php` **(Task 4 — cart UI)** — lists cart items via JOIN on `cart_item`/`cart`/`product`; supports update-quantity and remove-item; "Checkout" button posts to `checkout.php`.
+- `customer/checkout.php` **(Task 4 — checkout)** — `CALL checkout(?, @order_id, @out_of_stock)` then `SELECT @order_id, @out_of_stock`. On OOS, looks up current `actual_stock_quantity` and shows a message telling the user how many remain; otherwise shows the new `order_id`.
+- `customer/orders.php` **(Task 5)** — lists the logged-in customer's orders from `` `order` `` (backticked), and for each order inlines a per-order `order_item` table joined against `product`. Order detail is fully inlined here, so `order_detail.php` is currently unused.
 - `employee/employee.php` — auth guard + forced-reset redirect + landing nav.
 - `employee/password_change.php` — employee password change (Task 2); on success clears session flag and sends to dashboard.
+- `employee/restock.php` **(Task 6)** — lists active products with current stock; per-row form posts new qty, fetches old stock, `UPDATE product`, then `CALL log_product_update(pid, 'UPDATE', NULL, NULL, old_stock, new_stock, 'restock', employee_id, NULL, NULL)`.
+- `employee/change_price.php` **(Task 6)** — same pattern as restock but for `price`; logs with `'price change'` details and old/new price (stock fields NULL).
+- `employee/stock_history.php` **(Task 6)** — `history_record` rows where `old_stock` or `new_stock` is non-null, joined to `product` for names; includes computed delta column. Restocks only — purchase decrements not logged (see gotcha).
+- `employee/price_history.php` **(Task 6)** — `history_record` rows where `old_price`/`new_price` is non-null, joined to `product`; SQL `CASE` computes `((new - old)/old) * 100` as `pct_change`, formatted to 2 decimals in PHP.
+- `employee/new_product.php` **(Task 6 optional)** — form `CALL insert_product(name, price, image, desc, actual_qty, advised_qty, is_discontinued, category)`; category `<select>` populated from `category` table.
 - `includes/header.php` / `nav.php` / `footer.php` — shared layout; nav is role-aware and uses caller-set `$nav_base`.
 - `index.php` — redirects root to `customer/browse.php`.
 - **Repo reorganized by role** (auth/ customer/ employee/ includes/); scaffolds in place for Tasks 3–6.
 
 ### In progress / not started
-- **Task 3** — `customer/browse.php`: category list → product list (name, price, image, stock status). No login required to browse; add-to-cart requires auth.
-- **Task 4** — Shopping cart + checkout (**75 pts, biggest**). `customer/add_to_cart.php` (lazy cart creation + `ON DUPLICATE KEY UPDATE`), `customer/cart.php` (view/update/remove), `customer/checkout.php` (CALL checkout(?, @o, @oos) reading OUT params).
-- **Task 5** — `customer/orders.php` + `customer/order_detail.php` (order list with number/date/total → drill-down to `order_item`).
-- **Task 6** — Employee pages: `restock.php` (UPDATE + `CALL log_product_update`), `change_price.php` (same pattern), `stock_history.php`, `price_history.php` with % change, optional `new_product.php` via `insert_product` proc.
+- **Task 4 cleanup** — `customer/add_to_cart.php` still exists as a stub. Either delete it (since browse.php owns the logic) or move the POST handler into it and have `browse.php` post there.
+- **Task 5 cleanup** — `customer/order_detail.php` is an unused stub. Decide whether to split the per-order table out of `orders.php` into a proper drill-down, or delete `order_detail.php`.
 - **Task 7** — Navigation polish (nav.php already scaffolded) + end-to-end testing before the TA demo.
+- **Stock-history rubric decision** — `stock_history.php` currently shows only employee restocks (history_record). If TA expects purchase-driven decrements too, either modify the `checkout` proc to call `log_product_update`, or UNION `history_record` with `order_item`+`order` in the page query.
+- **Polish for all implemented pages** — consistent styling, `htmlspecialchars` audit on all echoed DB values, confirm integer casts on `quantity`/`product_id` inputs, and verify interface-usability rubric items (clear labels, totals on cart page, order totals formatted as currency).
 
 ### Phase 2 Report (separate deliverable, 80 pts)
 Not code — written doc required at submission. Must include: URLs, test credentials, database/table names, code snippets showing transaction handling + SQL-injection prevention, explanation of password encryption (bcrypt via `password_hash` / `password_verify`), and reflections. Each section is 5–15 pts.
