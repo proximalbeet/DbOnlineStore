@@ -1,5 +1,4 @@
-# DbOnlineStore — Phase 2
-
+/
 Online store web app for a database class. Phase 2 covers user-facing PHP features built on top of a Phase 1 schema that already exists on the department MySQL server (`classdb`).
 
 - **Phase 1 (done):** schema design, stored procedures, triggers, sample data.
